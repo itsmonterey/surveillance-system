@@ -355,6 +355,30 @@ def detect_this_image(image,frame):
         #dets = np.asarray(dets)
     return dets
 
+class MaskBuffer:
+    ZERO_BUFFER_SIZE = 10
+    MIN_EXISTING_RATIO = 0.12
+    def __init__(self,size):
+        self.old = np.zeros(size,dtype=np.uint8)
+        self.new = np.zeros(size,dtype=np.uint8)
+        self.zeroframe_count = 0
+    def add(self,mask):
+        if np.count_nonzero(mask) == 0:
+            self.zeroframe_count += 1
+        else:
+            self.zeroframe_count = 0
+            
+        if self.zeroframe_count == self.ZERO_BUFFER_SIZE:
+            self.zeroframe_count = 0
+        
+        if np.count_nonzero(self.new) > np.prod(self.old.shape) * self.MIN_EXISTING_RATIO and self.zeroframe_count != 0:
+            return
+        
+        self.old = self.new
+        self.new = mask
+        
+    def get(self):
+        return self.new
 #def refine_mog():
     
 import time
@@ -400,6 +424,13 @@ def scan_video(params):
     time_start = datetime.datetime.now()
     if params.preview:
         cv2.namedWindow(params.video)
+        
+    """
+    jack-todo
+    """
+    (ret, frame) = cap.read()
+    sframe = imutils.resize(frame, width=scan_size)
+    fgmask_buffer = MaskBuffer(sframe.shape)
     while cap.isOpened():
         (ret, frame) = cap.read()
         if frame is None:
@@ -465,7 +496,7 @@ def scan_video(params):
         image = cv2.resize(frame, (int(300), int(300)), interpolation=cv2.INTER_CUBIC)
         detss = detect_this_image(image,frame)
         ssd_mask = np.zeros(fgmask.shape[:2], dtype=np.uint8)
-            
+             
         for d in detss:
             
             single_mask = np.zeros(fgmask.shape[:2], dtype=np.uint8)
@@ -494,13 +525,15 @@ def scan_video(params):
                 rc = np.array([[[xmin,ymin],[xmax,ymin],[xmax,ymax],[xmin,ymax]]], dtype=np.int32)
                 cv2.fillPoly(single_mask, rc, 255)
                 ssd_mask = cv2.bitwise_or(ssd_mask,single_mask)
-                 
-        cv2.imshow("ssd_mask",ssd_mask)
-        cv2.waitKey(1)
-                
-        fgmask = ssd_mask#cv2.bitwise_and(fgmask.copy(),ssd_mask)#,mask=ssd_mask)#
-        cv2.imshow('fgmask', fgmask)
-        cv2.waitKey(1)
+  
+        #cv2.imshow("mog",fgmask)
+        #cv2.waitKey(1)
+         
+        fgmask_buffer.add(ssd_mask)
+        fgmask = fgmask_buffer.get()#cv2.bitwise_and(fgmask.copy(),ssd_mask)#,mask=ssd_mask)#
+            
+        #cv2.imshow('ssd', fgmask)
+        #cv2.waitKey(1)
         
         #(_, cnts, _) = cv2.findContours(fgmask.copy(), cv2.RETR_TREE,
         #                                cv2.CHAIN_APPROX_SIMPLE)
@@ -539,8 +572,8 @@ def scan_video(params):
                     urllib2.urlopen("http://127.0.0.1:{0}/sighting/{1}".format(params.slave_port, presence_num)).read()
                 logger.debug('roi_frame {0} Time {1} presence start'.format(frame_number, f_time))
         else:
-            if cur_presence:
-                presence_num += 1
+            if cur_presence:#if cur_presence:
+                presence_num += 1#increase the vehicle index
                 cur_presence['end_frame'] = frame_number
                 f_time = frame_rel_time if not params.is_stream else datetime.datetime.now().strftime(
                     '%Y-%m-%d %H:%M:%S')
@@ -550,6 +583,7 @@ def scan_video(params):
                     urllib2.urlopen("http://127.0.0.1:{0}/sighting/X".format(params.slave_port)).read()
                 logger.debug('roi_frame {0} Time {1} presence end'.format(frame_number, f_time))
             cur_presence = None
+            #cur_presence = None
         if not frame_number % 100 and not params.dump_interval == 0 and (
                     datetime.datetime.now() - time_start).total_seconds() > params.dump_interval:
             dump_presence(
