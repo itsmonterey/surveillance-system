@@ -3,8 +3,7 @@ Here, I will introduce you an advanced BGS of high accuracy. It consists of open
 That's why I chose caffe SSD.
 
 # Requirement
-[caffe](http://caffe.berkeleyvision.org/install_apt.html),[caffe-ssd](https://github.com/weiliu89/caffe/tree/ssd)
-# How to Install
+   [caffe](http://caffe.berkeleyvision.org/install_apt.html),[caffe-ssd](https://github.com/weiliu89/caffe/tree/ssd)
 
 # How to Use
     
