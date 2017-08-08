@@ -8,8 +8,8 @@ That's why I chose caffe SSD.
 # How to Use
     
     python car_detector.py\
-          -v "/media/frank/Data/Test/bgs/testvideos/uproad.m4v"\
-          -o "/media/frank/Data/Test/bgs/out"\
+          -v "/media/XXX/Data/Test/bgs/testvideos/uproad.m4v"\
+          -o "/media/XXX/Data/Test/bgs/out"\
           --preview\
           -i jpeg\
           --no-date-dir\
