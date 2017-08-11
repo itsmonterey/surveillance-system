@@ -1,9 +1,9 @@
 # Surveillance System
-Here, I will introduce you an advanced BGS of high accuracy. It consists of opencv MOG and caffe SSD. I tried to use tensorflow, but after performance testing, I was disappointed a lot. Tensorflow is easy to use, but speed is extremely slower than caffe. SSD works on 30 FPS with caffe while less than 2 FPS with tensorflow.
-That's why I chose caffe SSD.
+This repos, a preprocessing module for surveillance-system, takes out keeps vehicle frames from video stream. It also contains openalpr-based license plate recognition module.
 
 # Requirement
-   [caffe](http://caffe.berkeleyvision.org/install_apt.html),[caffe-ssd](https://github.com/weiliu89/caffe/tree/ssd)
+   caffe: [installation](http://caffe.berkeleyvision.org/install_apt.html), [source-code](https://github.com/weiliu89/caffe/tree/ssd)
+   openalpr:[source-code](https://github.com/openalpr/openalpr)
 
 # How to Use
     
