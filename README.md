@@ -23,4 +23,4 @@ This repos, a preprocessing module for surveillance-system, takes out keeps vehi
           -g [[(0.48,0.05),(0.16,0.93),(0.92,0.91),(0.93,0.06)]]
     
 # Thanks
-  * I would like to thanks [weiliu](https://github.com/weiliu89/caffe/tree/ssd) for his wonderful caffe-based ssd and also thanks [balancap](https://github.com/balancap/SSD-Tensorflow) for his tensorflow ssd job. I couldn't use tensorflow ssd for my job because it is too slow, but I think it could be useful someday.
+  * I would like to thanks [weiliu](https://github.com/weiliu89/caffe/tree/ssd) for his wonderful caffe-based ssd and also thanks [balancap](https://github.com/balancap/SSD-Tensorflow) for his tensorflow ssd job.
