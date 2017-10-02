@@ -10,6 +10,7 @@ import time
 #https://github.com/openalpr/openalpr/issues/508
 #https://github.com/openalpr/openalpr/releases/tag/v2.2.0
 #http://doc.openalpr.com/compiling.html#linux
+#https://github.com/openstreetmap/Nominatim/issues/577
 #https://github.com/openalpr/openalpr/issues/237
 
 alpr = Alpr("us", "/etc/openalpr/openalpr.conf", "/usr/share/openalpr/runtime_data")
