@@ -14,7 +14,7 @@ import time
 #Change CMakeList.txt : https://github.com/openalpr/openalpr/issues/237
 #Anaconda or Different Installation : https://github.com/openalpr/openalpr/issues/414
 #https://github.com/openalpr/openalpr/blob/fa561a063a203a1702a13f042fbfcff24d0b651f/src/bindings/python/openalpr/openalpr.py
-#(1.download stable-version 2.2.0()
+#(1.download https://github.com/openalpr/openalpr/tree/fa561a063a203a1702a13f042fbfcff24d0b651f()
 # 2.disable anaconda(~/.bashrc)
 # 3.You can edit the file : /openalpr/src/CMakeLists.txt Change
 #
