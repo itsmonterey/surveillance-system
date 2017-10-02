@@ -8,10 +8,11 @@ import time
 #-c us --config "/etc/openalpr/openalpr.conf" --runtime_data "/usr/share/openalpr/runtime_data" "5799KE.jpg"
 #https://github.com/openalpr/openalpr/issues/543
 #https://github.com/openalpr/openalpr/issues/508
-#https://github.com/openalpr/openalpr/releases/tag/v2.2.0
-#http://doc.openalpr.com/compiling.html#linux
-#https://github.com/openstreetmap/Nominatim/issues/577
-#https://github.com/openalpr/openalpr/issues/237
+#which one to be selected : https://github.com/openalpr/openalpr/releases/tag/v2.2.0
+#On ubuntu,compilation : http://doc.openalpr.com/compiling.html#linux
+#Anaconda makes problem : https://github.com/openstreetmap/Nominatim/issues/577
+#Change CMakeList.txt : https://github.com/openalpr/openalpr/issues/237
+#Anaconda or Different Installation : https://github.com/openalpr/openalpr/issues/414
 #(1.download stable-version 2.2.0()
 # 2.disable anaconda(~/.bashrc)
 # 3.You can edit the file : /openalpr/src/CMakeLists.txt Change
