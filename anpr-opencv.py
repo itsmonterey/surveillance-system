@@ -12,6 +12,38 @@ import time
 #http://doc.openalpr.com/compiling.html#linux
 #https://github.com/openstreetmap/Nominatim/issues/577
 #https://github.com/openalpr/openalpr/issues/237
+#(1.download stable-version 2.2.0()
+# 2.disable anaconda(~/.bashrc)
+# 3.You can edit the file : /openalpr/src/CMakeLists.txt Change
+#
+#        if ( NOT DEFINED WITH_TESTS )
+#                SET(WITH_TESTS ON)
+#        to
+#
+#        if ( NOT DEFINED WITH_TESTS )
+#                SET(WITH_TESTS OFF)
+#        ENDIF()
+# 4.Follow Install Guide
+#       # Install prerequisites
+#       sudo apt-get install libopencv-dev libtesseract-dev git cmake build-essential libleptonica-dev
+#       sudo apt-get install liblog4cplus-dev libcurl3-dev
+#       # If using the daemon, install beanstalkd
+#       sudo apt-get install beanstalkd
+#       # Clone the latest code from GitHub
+#       git clone https://github.com/openalpr/openalpr.git
+#       # Setup the build directory
+#       cd openalpr/src
+#       mkdir build
+#       cd build
+#       # setup the compile environment
+#       cmake -DCMAKE_INSTALL_PREFIX:PATH=/usr -DCMAKE_INSTALL_SYSCONFDIR:PATH=/etc ..
+#       # compile the library
+#       make
+#       # Install the binaries/libraries to your local system (prefix is /usr)
+#       sudo make install
+#       # Test the library
+#       wget http://plates.openalpr.com/h786poj.jpg -O lp.jpg
+#       alpr lp.jpg
 
 alpr = Alpr("us", "/etc/openalpr/openalpr.conf", "/usr/share/openalpr/runtime_data")
 if not alpr.is_loaded():
