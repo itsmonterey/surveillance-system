@@ -1,0 +1,3 @@
+move ..\tmp\checkpoints.\
+
+pause
