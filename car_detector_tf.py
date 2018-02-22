@@ -2,15 +2,15 @@
 from PIL import Image
 # import pytesseract
 # import urllib2
-import signal
+#import signal
 import argparse
 import csv
 import datetime
 import threading
 import timeit
 import urllib
-# import SimpleHTTPServer
-# import SocketServer
+#import SimpleHTTPServer
+#import SocketServer
 
 import copy
 import imutils
@@ -19,7 +19,7 @@ import cv2
 import logging
 
 import os
-import sys
+#import sys
 
 import multiprocessing
 
@@ -162,13 +162,14 @@ def create_image_name(params, seconds, num, frame_number, suffix='', sight_num=0
                                                   pos_to_literal(seconds), frame_number
                                                   , params.imgformat))
 
-
-# class SightingHandler(SimpleHTTPServer.SimpleHTTPRequestHandler, object):
-#     CUR_SIGHTING = 'X'
-#
-#     def do_GET(self):
-#         SightingHandler.CUR_SIGHTING = str(self.path.split('/sighting/')[-1])
-#         self.send_response(200)
+'''
+class SightingHandler(SimpleHTTPServer.SimpleHTTPRequestHandler, object):
+    CUR_SIGHTING = 'X'
+    
+    def do_GET(self):
+        SightingHandler.CUR_SIGHTING = str(self.path.split('/sighting/')[-1])
+        self.send_response(200)
+'''
 
 
 
@@ -178,7 +179,6 @@ def dump_presence(filename, presence):
         dict_writer = csv.DictWriter(output_file, ('start_time', 'end_time', 'start_frame', 'end_frame'))
         dict_writer.writeheader()
         dict_writer.writerows(presence)
-
 
 ts_x = 195
 ts_y = 1067
@@ -255,20 +255,8 @@ Created on Wed Aug  2 14:10:16 2017
 """
 
 import numpy as np
-import cv2
 import matplotlib.pyplot as plt
 import os
-import sys
-
-from google.protobuf import text_format
-from caffe.proto import caffe_pb2
-
-sys.path.append('/home/frank/caffe-ssd/python')
-
-labelmap_file = 'data/VOC0712/labelmap_voc.prototxt'
-file = open(labelmap_file, 'r')
-labelmap = caffe_pb2.LabelMap()
-text_format.Merge(str(file.read()), labelmap)
 
 def get_labelname(labelmap, labels):
     num_labels = len(labelmap.item)
@@ -277,7 +265,7 @@ def get_labelname(labelmap, labels):
         labels = [labels]
     for label in labels:
         found = False
-        for i in xrange(0, num_labels):
+        for i in range(0, num_labels):
             if label == labelmap.item[i].label:
                 found = True
                 labelnames.append(labelmap.item[i].display_name)
@@ -285,21 +273,7 @@ def get_labelname(labelmap, labels):
         assert found == True
     return labelnames
 
-model_def = 'models/VGGNet/VOC0712/SSD_300x300/deploy.prototxt'
-model_weights = 'models/VGGNet/VOC0712/SSD_300x300/VGG_VOC0712_SSD_300x300_iter_120000.caffemodel'
-
-net = caffe.Net(model_def, # defines the structure of the model
-model_weights, # contains the trained weights
-caffe.TEST) # use test mode (e.g., don't perform dropout)
-
-transformer = caffe.io.Transformer({'data': net.blobs['data'].data.shape})
-transformer.set_transpose('data', (2, 0, 1))
-transformer.set_mean('data', np.array([104,117,123])) # mean pixel
-
-transformer.set_channel_swap('data', (2,1,0)) # the reference model has channels in BGR order instead of RGB
-
 image_resize = 300
-net.blobs['data'].reshape(1,3,image_resize,image_resize)
 
 colors = plt.cm.hsv(np.linspace(0, 1, 21)).tolist()
 
@@ -330,7 +304,7 @@ def detect_this_image(image,frame):
     dets = np.empty((0,5),int)
     #dets = [] 
 
-    for i in xrange(top_conf.shape[0]):
+    for i in range(top_conf.shape[0]):
         xmin = int(round(top_xmin[i] * image.shape[1]))
         ymin = int(round(top_ymin[i] * image.shape[0]))
         xmax = int(round(top_xmax[i] * image.shape[1]))
@@ -369,10 +343,14 @@ class MaskBuffer:
         
     def get(self):
         return self.new
-#def refine_mog():
-    
-import time
 
+try:#if sys.version_info >= (3,):
+    import urllib.request as urllib2
+    python3 = True
+except ImportError:#else:
+    import urllib2
+    python3 = False
+    
 def scan_video(params):
     if not params.is_master:
         # start slave sighting listener
@@ -603,12 +581,12 @@ def scan_video(params):
     frame_writer.release()
     return presence_list
 
-
-if __name__ == '__main__':
+def main():
     try:
         ap = argparse.ArgumentParser()
         ap.add_argument("-v", "--video",
-                        help="Path to the video files or stream URLs separated by ; If there are 2 streams, first is considered 'master' and provides sighting number to the 'slave'")
+                        help="Path to the video files or stream URLs separated by ; If there are 2 streams, first is considered 'master' and provides sighting number to the 'slave'",
+                        default="uproad.m4v")
         ap.add_argument("-o", "--outdir", help="path to the dir with output files", default='out')
         ap.add_argument("-d", "--dumpimages", help="dump images with motion", default=True)
         ap.add_argument("-s", "--size", type=float, default=0.3, help="minimum relative size of the object (0-1)")
@@ -684,8 +662,8 @@ if __name__ == '__main__':
         # else:
         #     mp_args[0].alone = False
         
-        print mp_args
-        print args.parallel
+        print(mp_args)
+        print(args.parallel)
         
         try:
             if len(mp_args) > 1 and args.parallel > 0:
@@ -704,7 +682,7 @@ if __name__ == '__main__':
                         cur_sno += len(presence)
                     except:
                         logger.exception('Error processing source, skipping:')
-            print  zip(presence, mp_args)
+            print(zip(presence, mp_args))
             for p, a in zip(presence, mp_args):
                 if not a.is_stream and p:
                     video_name = a.video[a.video.rfind('/') + 1:] if args.is_stream else os.path.basename(a.video)
@@ -722,3 +700,6 @@ if __name__ == '__main__':
         if exc is not SystemExit:
             logger.exception('Error processing video')
     input("Press any key to exit")
+    
+if __name__ == '__main__':
+    main()

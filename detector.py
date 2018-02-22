@@ -110,7 +110,11 @@ class VehicleDetector(object):
             self.img_input, None, None, self.net_shape, self.data_format, resize=ssd_vgg_preprocessing.Resize.WARP_RESIZE)
         self.image_4d = tf.expand_dims(self.image_pre, 0)
         # Define the SSD model.
-        self.reuse = True if 'ssd_net' in locals() else None
+        try:
+            tf.get_variable('ssd_300_vgg/conv1/conv1_1/weights')
+            self.reuse  = True# if tf.variable_scope('ssd_300_vgg/conv1/conv1_1/weights') else None
+        except ValueError:
+            self.reuse  = None
         self.ssd_net = ssd_vgg_300.SSDNet()
         with slim.arg_scope(self.ssd_net.arg_scope(data_format=self.data_format)):
             self.predictions, self.localisations, _, _ = self.ssd_net.net(self.image_4d, is_training=False, reuse=self.reuse)
@@ -226,6 +230,9 @@ class VehicleDetector(object):
         return bboxes
     
     def __exit__(self, exc_type, exc_value, traceback):
+        self.isess.close()
+    
+    def close(self):
         self.isess.close()
         
 if __name__ == '__main__':

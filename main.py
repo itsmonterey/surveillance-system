@@ -6,23 +6,25 @@ Created on Sat Feb 17 21:41:41 2018
 """
 
 from detector import VehicleDetector
+import os
 import cv2
 import time
 
 def opencv2skimage(img):
     return cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
 
-fullpath = 'D:\\Projects\\Tensorflow\\testvideos\\uproad.m4v'
-cap = cv2.VideoCapture(fullpath)
-
 def main():
+    import gc
+    gc.collect()
     detector = VehicleDetector()
     framecount = 0
+    print(os.path.abspath('uproad.m4v'))
+    cap = cv2.VideoCapture(os.path.abspath('uproad.m4v'))
     while(1):
        ret, frame = cap.read()
        #cv2.imshow('frame',frame)
        if ret is False:
-           continue
+           break
        framecount+=1
        #if framecount % 5 != 0:
        #    continue
@@ -42,6 +44,10 @@ def main():
        print(e-s)
        k = cv2.waitKey(1) & 0xFF
        if k == 27:
-           break    
+           cv2.destroyAllWindows()
+           break
+    print('releasing net...')
+    detector.close()
     
 if __name__ == "__main__":
+    main()

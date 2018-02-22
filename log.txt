@@ -1,0 +1,25 @@
+[2018-02-20 00:32:04,123]:8868 INFO Restoring parameters from ./checkpoints/ssd_300_vgg.ckpt
+[2018-02-20 00:32:04,123]:8868 INFO Restoring parameters from ./checkpoints/ssd_300_vgg.ckpt
+[2018-02-20 00:39:40,131]:5056 INFO Arguments: {'outdir': 'out', 'dump_interval': 0, 'master_offset': 0, 'parallel': 0, 'learningrate': -1, 'size': 0.3, 'video': 'uproad.m4v', 'slave_port': 7800, 'date_dir': True, 'debug': False, 'sight_num': 0, 'light': True, 'roi': '[[(0.0,0.0),(1.0,0.0),(1.0,1.0),(0.0,1.0)]]', 'file_dir': True, 'dumpimages': True, 'preview': False, 'noise': True, 'imgformat': 'jpeg'}
+[2018-02-20 00:39:40,131]:5056 ERROR Error processing video
+Traceback (most recent call last):
+  File "D:/Projects/surveillance-system/car_detector_tf.py", line 633, in main
+    raise Exception('Unknown stream type or video file doesn''t exist')
+Exception: Unknown stream type or video file doesnt exist
+[2018-02-20 01:41:37,359]:9164 INFO Arguments: {'noise': True, 'learningrate': -1, 'light': True, 'imgformat': 'jpeg', 'master_offset': 0, 'file_dir': True, 'sight_num': 0, 'dump_interval': 0, 'outdir': 'out', 'slave_port': 7800, 'size': 0.3, 'date_dir': True, 'dumpimages': True, 'roi': '[[(0.0,0.0),(1.0,0.0),(1.0,1.0),(0.0,1.0)]]', 'debug': False, 'preview': False, 'video': 'uproad.m4v', 'parallel': 0}
+[2018-02-20 01:41:37,360]:9164 INFO Starting sequential processing...
+[2018-02-20 01:41:37,360]:9164 INFO Processing source uproad.m4v, 0 of 1
+[2018-02-20 01:41:37,377]:9164 ERROR Error processing source, skipping:
+Traceback (most recent call last):
+  File "D:/Projects/surveillance-system/car_detector_tf.py", line 681, in main
+    presence = scan_video(ar)
+  File "D:/Projects/surveillance-system/car_detector_tf.py", line 368, in scan_video
+    bgs = cv2.BackgroundSubtractorMOG2()#cv2.createBackgroundSubtractorMOG2(detectShadows=False)
+AttributeError: module 'cv2' has no attribute 'BackgroundSubtractorMOG2'
+[2018-02-20 01:41:37,380]:9164 ERROR Error processing video
+Traceback (most recent call last):
+  File "D:/Projects/surveillance-system/car_detector_tf.py", line 685, in main
+    print(zip(presence, mp_args))
+UnboundLocalError: local variable 'presence' referenced before assignment
+[2018-02-20 01:47:22,321]:9164 INFO Restoring parameters from ./checkpoints/ssd_300_vgg.ckpt
+[2018-02-20 01:47:27,525]:9164 INFO Restoring parameters from ./checkpoints/ssd_300_vgg.ckpt
