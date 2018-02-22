@@ -277,48 +277,6 @@ image_resize = 300
 
 colors = plt.cm.hsv(np.linspace(0, 1, 21)).tolist()
 
-def detect_this_image(image,frame):
-    transformed_image = transformer.preprocess('data', image)
-    net.blobs['data'].data[0,...] = transformed_image
-    # net.blobs['data'].data[0,...] = image
-    # Forward pass.
-    detections = net.forward()['detection_out']
-    # Parse the outputs.
-    det_label = detections[0,0,:,1]
-    det_conf = detections[0,0,:,2]
-    det_xmin = detections[0,0,:,3]
-    det_ymin = detections[0,0,:,4]
-    det_xmax = detections[0,0,:,5]
-    det_ymax = detections[0,0,:,6]
-    # Get detections with confidence higher than 0.6.
-    top_indices = [i for i, conf in enumerate(det_conf) if conf >= 0.6]
-    top_conf = det_conf[top_indices]
-    top_label_indices = det_label[top_indices].tolist()
-    top_labels = get_labelname(labelmap, top_label_indices)
-    top_xmin = det_xmin[top_indices]
-    top_ymin = det_ymin[top_indices]
-    top_xmax = det_xmax[top_indices]
-    top_ymax = det_ymax[top_indices]
-
-    #define a numpy empty array of detections 
-    dets = np.empty((0,5),int)
-    #dets = [] 
-
-    for i in range(top_conf.shape[0]):
-        xmin = int(round(top_xmin[i] * image.shape[1]))
-        ymin = int(round(top_ymin[i] * image.shape[0]))
-        xmax = int(round(top_xmax[i] * image.shape[1]))
-        ymax = int(round(top_ymax[i] * image.shape[0]))
-        score = top_conf[i]
-        label = int(top_label_indices[i])
-        label_name = top_labels[i]
-        color = colors[label]
-        
-        dets = np.append(dets,np.array([[xmin,ymin,xmax,ymax,label]]),axis=0)
-        #dets.append([xxmin,yymin,xxmax,yymax,score])
-        #dets = np.asarray(dets)
-    return dets
-
 class MaskBuffer:
     ZERO_BUFFER_SIZE = 10
     MIN_EXISTING_RATIO = 0.12
@@ -343,14 +301,24 @@ class MaskBuffer:
         
     def get(self):
         return self.new
+'''
+jack-todo
 
+start
+'''
 try:#if sys.version_info >= (3,):
     import urllib.request as urllib2
     python3 = True
 except ImportError:#else:
     import urllib2
     python3 = False
-    
+from detector import VehicleDetector
+detector = VehicleDetector()
+'''
+end
+'''
+
+
 def scan_video(params):
     if not params.is_master:
         # start slave sighting listener
@@ -365,10 +333,18 @@ def scan_video(params):
         cap.set(cv2.CAP_PROP_POS_MSEC, params.offset)
         logger.info('Offset set to {0} ms'.format(params.offset))
     kernel = np.ones((3, 3), np.uint8)
-    bgs = cv2.BackgroundSubtractorMOG2()#cv2.createBackgroundSubtractorMOG2(detectShadows=False)
+    
+    (major, minor, _) = cv2.__version__.split(".")
+    if int(major) > 2:
+        bgs = cv2.createBackgroundSubtractorMOG2(detectShadows=False)
+        fps = cap.get(cv2.CAP_PROP_FPS)
+        length = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+    else:
+        bgs = cv2.BackgroundSubtractorMOG2()
+        fps = cap.get(cv2.cv.CV_CAP_PROP_FPS)
+        length = int(cap.get(cv2.cv.CV_CAP_PROP_FRAME_COUNT))
     frame_writer = BufferedFrameWriter()
-    fps = cap.get(cv2.cv.CV_CAP_PROP_FPS)
-    length = int(cap.get(cv2.cv.CV_CAP_PROP_FRAME_COUNT))
+
     cur_time = timeit.default_timer()
     scan_size = 320
     frame_number = 0
@@ -462,37 +438,27 @@ def scan_video(params):
         
         """
         image = cv2.resize(frame, (int(300), int(300)), interpolation=cv2.INTER_CUBIC)
-        detss = detect_this_image(image,frame)
         ssd_mask = np.zeros(fgmask.shape[:2], dtype=np.uint8)
+        rclasses, rscores, rbboxes  = detector.process_image(image)
              
-        for d in detss:
+        for i in range(rclasses.shape[0]):
             
             single_mask = np.zeros(fgmask.shape[:2], dtype=np.uint8)
-            fheight,fwidth = fgmask.shape[:2]    
-            xmin=int(round(d[0]*fwidth/300))
-            ymin=int(round(d[1]*fheight/300))
-            xmax=int(round(d[2]*fwidth/300))
-            ymax=int(round(d[3]*fheight/300))  
-            #print xxmin,yymin,xxmax,yymax,track_id,category
-            #print int(d[0]),int(d[1]),int(d[2]),int(d[3]),d[4],d[5]
-            
+            fheight,fwidth = fgmask.shape[:2]
+            ymin=int(round(rbboxes[i, 0]*fheight))
+            xmin=int(round(rbboxes[i, 1]*fwidth))
+            ymax=int(round(rbboxes[i, 2]*fheight))  
+            xmax=int(round(rbboxes[i, 3]*fwidth))
             fheight,fwidth = frame.shape[:2]
-            xxmin=int(round(d[0]*fwidth/300))
-            yymin=int(round(d[1]*fheight/300))
-            xxmax=int(round(d[2]*fwidth/300))
-            yymax=int(round(d[3]*fheight/300))   
-            #draw the trackers
-            d = d.astype(np.uint32)
-            color=colors[10]
-            
-            if d[4] == 4 or d[4] == 6 or d[4] == 7 or d[4] == 19:
-                cv2.rectangle(frame, (xxmin,yymin), (xxmax,yymax),(int(color[0]*240),int(color[1]*240),int(color[2]*240)),2)
-                #cv2.rectangle(frame, (int(round(d[0]*fwidth/300)),int(round(d[1]*fheight/300))), (int(round(d[2]*fwidth/300)), int(round(d[3]*fheight/300))),(int(color[0]*240),int(color[1]*240),int(color[2]*240)), 2)
-                #cv2.imshow('frame', frame)
-                #cv2.putText(frame,str(d[4]),(xxmin,yymin),cv2.FONT_HERSHEY_SIMPLEX,2,255)
-                rc = np.array([[[xmin,ymin],[xmax,ymin],[xmax,ymax],[xmin,ymax]]], dtype=np.int32)
-                cv2.fillPoly(single_mask, rc, 255)
-                ssd_mask = cv2.bitwise_or(ssd_mask,single_mask)
+            yymin=int(round(rbboxes[i, 0]*fheight))
+            xxmin=int(round(rbboxes[i, 1]*fwidth))
+            yymax=int(round(rbboxes[i, 2]*fheight))  
+            xxmax=int(round(rbboxes[i, 3]*fwidth))
+            color=colors[10]           
+            cv2.rectangle(frame, (xxmin,yymin), (xxmax,yymax),(int(color[0]*240),int(color[1]*240),int(color[2]*240)),2)
+            rc = np.array([[[xmin,ymin],[xmax,ymin],[xmax,ymax],[xmin,ymax]]], dtype=np.int32)
+            cv2.fillPoly(single_mask, rc, 255)
+            ssd_mask = cv2.bitwise_or(ssd_mask,single_mask)
   
         #cv2.imshow("mog",fgmask)
         #cv2.waitKey(1)
@@ -503,10 +469,13 @@ def scan_video(params):
         #cv2.imshow('ssd', fgmask)
         #cv2.waitKey(1)
         
-        #(_, cnts, _) = cv2.findContours(fgmask.copy(), cv2.RETR_TREE,
-        #                                cv2.CHAIN_APPROX_SIMPLE)
-        cnts,hierarchy = cv2.findContours(fgmask.copy(), cv2.cv.CV_RETR_TREE,
-                                cv2.cv.CV_CHAIN_APPROX_SIMPLE)
+
+        if int(major) > 2:
+            (_, cnts, _) = cv2.findContours(fgmask.copy(), cv2.RETR_TREE,
+                                        cv2.CHAIN_APPROX_SIMPLE)            
+        else:
+            cnts,hierarchy = cv2.findContours(fgmask.copy(), cv2.cv.CV_RETR_TREE,
+                                    cv2.cv.CV_CHAIN_APPROX_SIMPLE)
         
         # loop over the contours
         max_cnt = None
@@ -581,6 +550,13 @@ def scan_video(params):
     frame_writer.release()
     return presence_list
 
+
+
+
+#
+# python car_detector.py -v "uproad.m4v" -o "out" --preview -i jpeg --no-date-dir --no-file-dir --no-light --no-noise -s 0.3 -l -1 -m 0 -n 0 -g [[(0.48,0.05),(0.16,0.93),(0.92,0.91),(0.93,0.06)]]
+#from gooey import Gooey
+#@Gooey
 def main():
     try:
         ap = argparse.ArgumentParser()

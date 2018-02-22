@@ -114,6 +114,7 @@ class VehicleDetector(object):
             tf.get_variable('ssd_300_vgg/conv1/conv1_1/weights')
             self.reuse  = True# if tf.variable_scope('ssd_300_vgg/conv1/conv1_1/weights') else None
         except ValueError:
+            print('model loading failed')
             self.reuse  = None
         self.ssd_net = ssd_vgg_300.SSDNet()
         with slim.arg_scope(self.ssd_net.arg_scope(data_format=self.data_format)):

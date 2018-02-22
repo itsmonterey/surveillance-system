@@ -1,9 +1,15 @@
+# -*- coding: utf-8 -*-
+"""
+Created on Thu Feb 22 03:06:01 2018
+
+@author: stephen
+"""
+
 from openalpr import Alpr
 from argparse import ArgumentParser
 import sys
 import numpy as np
 import cv2
-import cv
 import time
 #-c us --config "/etc/openalpr/openalpr.conf" --runtime_data "/usr/share/openalpr/runtime_data" "5799KE.jpg"
 #https://github.com/openalpr/openalpr/issues/543
@@ -58,9 +64,7 @@ alpr.set_default_region("au")
 '''
 cap = cv2.VideoCapture("/media/frank/Data/Test/bgs/testvideos/uproad.m4v")#"rtsp://ip:port/snl/live/1/2?tcp")
 ret, frame = cap.read()
-
 while(True):
-
     ret,frame = cap.read()
     gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)#cv2.imread("5799KE.jpg",0)   
     results = alpr.recognize_ndarray(gray)
@@ -80,7 +84,6 @@ while(True):
     resized = cv2.resize(frame,(0,0),fx=0.3,fy=0.3)
     cv2.imshow("frame",resized)
     cv2.waitKey(1)
-
 cap.release()
 '''
 
@@ -98,10 +101,10 @@ for plate in results['results']:
         prefix = "-"
         if candidate['matches_template']:
                 prefix = "*"
-        print "  %s %12s%12f"%(prefix, candidate['plate'], candidate['confidence'])
+        print("  %s %12s%12f"%(prefix, candidate['plate'], candidate['confidence']))
         break
 e = time.time()
-print e-s
+print(e-s)
 #resized = cv2.resize(gray,(0,0),fx=0.3,fy=0.3)
 cv2.imshow("frame",gray)
 cv2.waitKey(1000)                
