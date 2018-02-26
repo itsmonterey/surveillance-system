@@ -614,11 +614,14 @@ def scan_video(params):
     return presence_list
 
 
-if __name__ == '__main__':
+from gooey import Gooey
+@Gooey
+def main():
     try:
         ap = argparse.ArgumentParser()
         ap.add_argument("-v", "--video",
-                        help="Path to the video files or stream URLs separated by ; If there are 2 streams, first is considered 'master' and provides sighting number to the 'slave'")
+                        help="Path to the video files or stream URLs separated by ; If there are 2 streams, first is considered 'master' and provides sighting number to the 'slave'",
+                        default="uproad.m4v")
         ap.add_argument("-o", "--outdir", help="path to the dir with output files", default='out')
         ap.add_argument("-d", "--dumpimages", help="dump images with motion", default=True)
         ap.add_argument("-s", "--size", type=float, default=0.3, help="minimum relative size of the object (0-1)")
@@ -694,8 +697,8 @@ if __name__ == '__main__':
         # else:
         #     mp_args[0].alone = False
         
-        print mp_args
-        print args.parallel
+        print(mp_args)
+        print(args.parallel)
         
         try:
             if len(mp_args) > 1 and args.parallel > 0:
@@ -714,7 +717,7 @@ if __name__ == '__main__':
                         cur_sno += len(presence)
                     except:
                         logger.exception('Error processing source, skipping:')
-            print  zip(presence, mp_args)
+            print(zip(presence, mp_args))
             for p, a in zip(presence, mp_args):
                 if not a.is_stream and p:
                     video_name = a.video[a.video.rfind('/') + 1:] if args.is_stream else os.path.basename(a.video)
@@ -732,3 +735,6 @@ if __name__ == '__main__':
         if exc is not SystemExit:
             logger.exception('Error processing video')
     input("Press any key to exit")
+    
+if __name__ == '__main__':
+    main()
