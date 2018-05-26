@@ -8,22 +8,25 @@ import os
 import sys
 
 image_exts = ['.jpeg','.jpg','.png','.bmp']
-video_exts = ['.mpg','.mpeg','.mp4','.avi']
+video_exts = ['.mpg','.mpeg','.mp4','.avi','m4v']
 
-from PyQt5.QtWidgets import QMainWindow, QTextEdit, QAction, QApplication, QFileDialog, QMessageBox, QProgressBar
-from PyQt5.QtWidgets import QVBoxLayout,QHBoxLayout,QPushButton,QSizePolicy,QSplitter#, QCheckBox
-from PyQt5.QtWidgets import QComboBox,QDialog, QLabel,QLineEdit#, QTableWidget,QStackedWidget
-from PyQt5.QtWidgets import QDateTimeEdit,QDialogButtonBox
-from PyQt5.QtWebKitWidgets import QWebView
-from PyQt5.QtWebKit import QWebSettings
-from PyQt5.QtGui import QIcon,QFont,QKeySequence#,QVBoxLayout,QHBoxLayout
+#from PyQt5.QtWidgets import QMainWindow, QTextEdit, QAction, QApplication, QMessageBox, QProgressBar
+from PyQt5.QtWidgets import QApplication,QMessageBox,QFileDialog
+from PyQt5.QtWidgets import QVBoxLayout,QHBoxLayout,QPushButton
+#from PyQt5.QtWidgets import QSizePolicy,QSplitter, QCheckBox
+from PyQt5.QtWidgets import QDialog, QLabel
+#from PyQt5.QtWidgets import QComboBox,,LineEdit, QTableWidget,QStackedWidget
+#from PyQt5.QtWidgets import QDateTimeEdit,QDialogButtonBox
+#from PyQt5.QtWebKitWidgets import QWebView
+#from PyQt5.QtWebKit import QWebSettings
+#from PyQt5.QtGui import QIcon,QFont,QKeySequence#,QVBoxLayout,QHBoxLayout
 from PyQt5 import QtCore
-from PyQt5.QtCore import Qt, QObject, pyqtSignal, QThread
-from PyQt5.Qt import QDateTime
-from PyQt5.QtWidgets import QWidget
+from PyQt5.QtCore import Qt, pyqtSignal, QThread#, QObject
+#from PyQt5.Qt import QDateTime
+#from PyQt5.QtWidgets import QWidget
 from PyQt5.QtGui import QImage,QPixmap
-from PyQt5.QtGui import QPainter, QPen, QPainterPath, QBrush
-from PyQt5.QtCore import QSize, QLine, QPoint, QRect
+from PyQt5.QtGui import QPainter, QPen, QBrush#, QPainterPath
+from PyQt5.QtCore import QLine, QPoint, QRect#,QSize, 
 
 import numpy as np
 #import random
@@ -32,7 +35,7 @@ import numpy as np
 from detector import VehicleDetector
 
 detector = VehicleDetector()
-    
+
 class Thread(QThread):
     changePixmap = pyqtSignal(QPixmap)
 
@@ -52,6 +55,7 @@ class Thread(QThread):
         self.ispaused = True
         self.isprocessing = False
         self.ismarked = False
+        self.isinterrupted = False
         ###        
         
     def isDrawing(self):
@@ -81,6 +85,7 @@ class Thread(QThread):
             frame = cv2.rectangle(frame, (int(x1),int(y1)), (int(x2),int(y2)), (0,255,0), int(self.wratio if self.wratio > 2 else 2))
         ### Processing
         if self.isprocessing:
+            font = cv2.FONT_HERSHEY_DUPLEX
             rclasses, rscores, rbboxes =  detector.process_image(frame)
             for i in range(rclasses.shape[0]):
                ymin = int(rbboxes[i, 0] * h)
@@ -108,6 +113,7 @@ class Thread(QThread):
         print('ext:%s'%ext)
         if ext.lower() in image_exts:
             print('processing image...')
+            self.isfinished = False
             frame = cv2.imread(self.filepath)
             if frame is None:
                 print('no file exists')
@@ -176,6 +182,7 @@ class Dialog(QDialog):
         self.line = QLine()
         self.roiRect = QRect()
         self.initialize()
+        self.curFilePath = None
 
     def act_draw(self):
         self.thread.setMarked(not self.thread.isMarked())
@@ -183,7 +190,20 @@ class Dialog(QDialog):
         self.thread.refresh()
     
     def act_fileopen(self):
-        filepath,extensions = QFileDialog.getOpenFileName(self, r'File Open','',"Image/Video Files (*.jpeg *.jpg *.png *.avi *.mpeg *.mpg *.mp4)")
+        ispaused = self.thread.isPaused()
+        self.thread.setPaused(True)
+        self.playbutton.setText('play') if self.thread.isPaused() else self.playbutton.setText('paused')
+        filepath,extensions = QFileDialog.getOpenFileName(self, r'File Open','',"Image/Video Files (*.jpeg *.jpg *.png *.avi *.mpeg *.mpg *.mp4 *m4v)")
+        if not self.curFilePath:
+            self.curFilePath = filepath
+        if filepath == self.curFilePath:
+            print('continuing original playing')
+            self.thread.setPaused(ispaused)
+            self.playbutton.setText('play') if self.thread.isPaused() else self.playbutton.setText('paused')
+        else:
+            print('exiting original playing...')
+            self.thread.terminate()
+            self.curFilePath = filepath
         self.thread.setpath(filepath)
         self.thread.start()
 
