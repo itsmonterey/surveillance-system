@@ -29,12 +29,9 @@ from PyQt5.QtGui import QPainter, QPen, QBrush#, QPainterPath
 from PyQt5.QtCore import QLine, QPoint, QRect#,QSize, 
 
 import numpy as np
-#import random
-#import time
 
-from detector import VehicleDetector
-
-detector = VehicleDetector()
+import face_recognition
+from load_faces import queryface
 
 class Thread(QThread):
     changePixmap = pyqtSignal(QPixmap)
@@ -50,7 +47,7 @@ class Thread(QThread):
     def initialize(self):
         ###
         self.isdrawing = False
-        self.isfinished = False
+        self.isfinished = True
         self.isfirstscreen_displayed = False
         self.ispaused = True
         self.isprocessing = False
@@ -85,14 +82,20 @@ class Thread(QThread):
             frame = cv2.rectangle(frame, (int(x1),int(y1)), (int(x2),int(y2)), (0,255,0), int(self.wratio if self.wratio > 2 else 2))
         ### Processing
         if self.isprocessing:
-            font = cv2.FONT_HERSHEY_DUPLEX
-            rclasses, rscores, rbboxes =  detector.process_image(frame)
-            for i in range(rclasses.shape[0]):
-               ymin = int(rbboxes[i, 0] * h)
-               xmin = int(rbboxes[i, 1] * w)
-               ymax = int(rbboxes[i, 2] * h)
-               xmax = int(rbboxes[i, 3] * w)
-               cv2.rectangle(frame,(xmin,ymin),(xmax,ymax),(0,255,0),3)
+            rgb_frame = frame[:, :, ::-1]
+            # Find all the faces and face enqcodings in the frame of video
+            face_locations = face_recognition.face_locations(rgb_frame)
+            face_encodings = face_recognition.face_encodings(rgb_frame, face_locations)
+            # Loop through each face in this frame of video
+            for (top, right, bottom, left), face_encoding in zip(face_locations, face_encodings):
+                # See if the face is a match for the known face(s)
+                name = queryface(face_encoding)
+                # Draw a box around the face
+                cv2.rectangle(frame, (left, top), (right, bottom), (0, 0, 255), 2)
+                # Draw a label with a name below the face
+                cv2.rectangle(frame, (left, bottom - 35), (right, bottom), (0, 0, 255), cv2.FILLED)
+                font = cv2.FONT_HERSHEY_DUPLEX
+                cv2.putText(frame, name, (left + 6, bottom - 6), font, 1.0, (255, 255, 255), 1)
         ### Projecting to Label    
         rgbImage = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
         convertToQtFormat = QImage(rgbImage.data, w, h, QImage.Format_RGB888)
@@ -276,7 +279,6 @@ class Dialog(QDialog):
         ### Creating and Connecting Thread
         self.thread = Thread(self)
         self.thread.changePixmap.connect(self.label.setPixmap)
-
         ### Resize Windows
         self.setMinimumSize(1080,640)
         self.setWindowTitle("Demo")
