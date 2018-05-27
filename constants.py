@@ -29,8 +29,8 @@ labels = ['background',
           'train',
           'tvmonitor']
 
-left_margin = 20
-top_margin = 20
+left_margin = 0#20
+top_margin = 0#20
 
 label_height = 40
 label_gap = 3
@@ -40,3 +40,5 @@ __left_margin__ = 4
 
 text_height = label_height - 2 * __top_margin__
 
+text_color = (255,255,255)#(255, 0, 255)
+bg_color = (0,0,255)#(68, 68, 58)

@@ -18,7 +18,9 @@ import math
 import sys
 sys.path.append('../')
 
-from nets import ssd_vgg_300, np_methods#, ssd_common, np_methods
+from nets import ssd_vgg_300
+from nets import ssd_vgg_512
+from nets import np_methods#, ssd_common, np_methods
 from preprocessing import ssd_vgg_preprocessing
 #from notebooks import visualization
 
@@ -96,13 +98,15 @@ def drawBBox(img,
         showResult("drawBBox:result",out)
     return out
 
+MODEL = 300
+
 class VehicleDetector(object):
     def __init__(self, params=None):
         # TensorFlow session: grow memory when needed. TF, DO NOT USE ALL MY GPU MEMORY!!!
         self.gpu_options = tf.GPUOptions(allow_growth=True)
         self.config = tf.ConfigProto(log_device_placement=False, gpu_options=self.gpu_options)
         # Input placeholder.
-        self.net_shape = (300, 300)
+        self.net_shape = (512,512) if MODEL == 512 else (300, 300)
         self.data_format = 'NHWC'
         self.img_input = tf.placeholder(tf.uint8, shape=(None, None, 3))
         # Evaluation pre-processing: resize to SSD net shape.
@@ -111,17 +115,16 @@ class VehicleDetector(object):
         self.image_4d = tf.expand_dims(self.image_pre, 0)
         # Define the SSD model.
         try:
-            tf.get_variable('ssd_300_vgg/conv1/conv1_1/weights')
+            tf.get_variable('ssd_512_vgg/conv1/conv1_1/weights') if MODEL == 512 else tf.get_variable('ssd_300_vgg/conv1/conv1_1/weights')
             self.reuse  = True# if tf.variable_scope('ssd_300_vgg/conv1/conv1_1/weights') else None
         except ValueError:
             print('model loading failed')
             self.reuse  = None
-        self.ssd_net = ssd_vgg_300.SSDNet()
+        self.ssd_net = ssd_vgg_512.SSDNet() if MODEL == 512 else ssd_vgg_300.SSDNet()
         with slim.arg_scope(self.ssd_net.arg_scope(data_format=self.data_format)):
             self.predictions, self.localisations, _, _ = self.ssd_net.net(self.image_4d, is_training=False, reuse=self.reuse)
         # Restore SSD model.
-        self.ckpt_filename = './checkpoints/ssd_300_vgg.ckpt'
-        # ckpt_filename = '../checkpoints/VGG_VOC0712_SSD_300x300_ft_iter_120000.ckpt'
+        self.ckpt_filename = './checkpoints/VGG_VOC0712_SSD_512x512_ft_iter_120000.ckpt' if MODEL == 512 else './checkpoints/ssd_300_vgg.ckpt' 
         # SSD default anchor boxes.
         self.ssd_anchors = self.ssd_net.anchors(self.net_shape)
 

@@ -33,13 +33,109 @@ from detector import VehicleDetector
 
 detector = VehicleDetector()
 
+#from alpr_hyper import recognize_plate
+
 from constants import image_exts,video_exts
 from constants import labels
 from constants import left_margin,top_margin
-from constants import text_height,label_height,label_length
+from constants import label_height,label_length
 from constants import label_gap
 from constants import __top_margin__,__left_margin__
+from constants import text_color,bg_color
+'''
+from hyperlpr_py3 import pipline as pp
+import time
 
+draw_plate_in_image_enable = 1
+plateTypeName = ["蓝", "黄", "绿", "白", "黑 "]
+
+def recognize_plate(image):
+    t0 = time.time()
+
+    images = pp.detect.detectPlateRough(
+        image, image.shape[0], top_bottom_padding_rate=0.1)
+
+    res_set = []
+    y_offset = 32
+    for j, plate in enumerate(images):
+        plate, rect, origin_plate = plate
+
+        plate = cv2.resize(plate, (136, 36 * 2))
+        #t1 = time.time()
+
+        plate_type = pp.td.SimplePredict(plate)
+        plate_color = plateTypeName[plate_type]
+
+        if (plate_type > 0) and (plate_type < 5):
+            plate = cv2.bitwise_not(plate)
+
+        if draw_plate_in_image_enable == 1:
+            image[y_offset:y_offset + plate.shape[0], 0:plate.shape[1]] = plate
+            y_offset = y_offset + plate.shape[0] + 4
+
+        image_rgb = pp.fm.findContoursAndDrawBoundingBox(plate)
+
+        if draw_plate_in_image_enable == 1:
+            image[y_offset:y_offset + image_rgb.shape[0],
+                  0:image_rgb.shape[1]] = image_rgb
+            y_offset = y_offset + image_rgb.shape[0] + 4
+
+        image_rgb = pp.fv.finemappingVertical(image_rgb)
+
+        if draw_plate_in_image_enable == 1:
+            image[y_offset:y_offset + image_rgb.shape[0],
+                  0:image_rgb.shape[1]] = image_rgb
+            y_offset = y_offset + image_rgb.shape[0] + 4
+
+        pp.cache.verticalMappingToFolder(image_rgb)
+
+        if draw_plate_in_image_enable == 1:
+            image[y_offset:y_offset + image_rgb.shape[0],
+                  0:image_rgb.shape[1]] = image_rgb
+            y_offset = y_offset + image_rgb.shape[0] + 4
+
+        e2e_plate, e2e_confidence = pp.e2e.recognizeOne(image_rgb)
+        #print("e2e:", e2e_plate, e2e_confidence)
+
+        image_gray = cv2.cvtColor(image_rgb, cv2.COLOR_RGB2GRAY)
+
+        #print("校正", time.time() - t1, "s")
+
+        #t2 = time.time()
+        val = pp.segmentation.slidingWindowsEval(image_gray)
+        #print(val)
+        #print("分割和识别", time.time() - t2, "s")
+
+        res=""
+        confidence = 0
+        if len(val) == 3:
+            blocks, res, confidence = val
+            if confidence / 7 > 0.7:
+
+                if draw_plate_in_image_enable == 1:
+                    image = pp.drawRectBox(image, rect, res)
+                    for i, block in enumerate(blocks):
+                        block_ = cv2.resize(block, (24, 24))
+                        block_ = cv2.cvtColor(block_, cv2.COLOR_GRAY2BGR)
+                        image[j * 24:(j * 24) + 24, i *
+                              24:(i * 24) + 24] = block_
+                        if image[j * 24:(j * 24) + 24,
+                                 i * 24:(i * 24) + 24].shape == block_.shape:
+                            pass
+
+        res_set.append([res,
+                        confidence / 7,
+                        rect,
+                        plate_color,
+                        e2e_plate,
+                        e2e_confidence,
+                        len(blocks)])
+        #print("seg:",res,confidence/7)
+    print(time.time() - t0, "s")
+
+    #print("---------------------------------")
+    return image, res_set
+'''
 class Thread(QThread):
     changePixmap = pyqtSignal(QPixmap)
 
@@ -48,11 +144,13 @@ class Thread(QThread):
         self.filepath = None
         self.width, self.height = 640,480
         self.wratio,self.hratio=1,1
+        self.roiRect = QRect()
+        self.fps = 10
         self.curFrame = np.zeros((self.height,self.width,3), dtype=np.uint8)
         self.initialize()
 
     def initialize(self):
-        ###
+        # 
         self.isdrawing = False
         self.isfinished = True
         self.isfirstscreen_displayed = False
@@ -60,6 +158,8 @@ class Thread(QThread):
         self.isprocessing = False
         self.ismarked = False
         self.isinterrupted = False
+        
+        self.enable_license_plate_recognition = False
         ###        
         
     def isDrawing(self):
@@ -92,17 +192,52 @@ class Thread(QThread):
             font = cv2.FONT_HERSHEY_DUPLEX
             rclasses, rscores, rbboxes =  detector.process_image(frame)
             for i in range(rclasses.shape[0]):
-               top = int(rbboxes[i, 0] * h)
-               left = int(rbboxes[i, 1] * w)
-               bottom = int(rbboxes[i, 2] * h)
-               right = int(rbboxes[i, 3] * w)
-               cv2.rectangle(frame,(left,top),(right,bottom),(0,255,0),3)
-               if (right-left) > (label_length+2*left_margin+2*__left_margin__):
-                   cv2.rectangle(frame, (left+left_margin, top+top_margin), (int(left+label_length), top+top_margin+label_height), (68, 68, 58), cv2.FILLED)
-                   cv2.putText(frame, '%s|%.2f'%(labels[rclasses[i]],rscores[i]), (left+left_margin+__left_margin__, top+top_margin+label_height-__top_margin__), font, 1, (255, 0, 255), 2)
-               else:
-                   cv2.rectangle(frame, (right+left_margin, top+top_margin), (int(right+label_length), top+top_margin+label_height), (68, 68, 58), cv2.FILLED)
-                   cv2.putText(frame, '%s|%.2f'%(labels[rclasses[i]],rscores[i]), (right+left_margin+__left_margin__, top+top_margin+label_height-__top_margin__), font, 1, (255, 0, 255), 2)                   
+                top = int(rbboxes[i, 0] * h)
+                left = int(rbboxes[i, 1] * w)
+                bottom = int(rbboxes[i, 2] * h)
+                right = int(rbboxes[i, 3] * w)
+                # extract roi
+                roi = frame[top:bottom,left:right,:]
+                # object detection and display result
+                cv2.rectangle(frame,(left,top),(right,bottom),bg_color,3)
+                if (right-left) > (label_length+2*left_margin+2*__left_margin__):
+                    left_ = left+left_margin
+                    top_ = top+top_margin
+                    right_ = left+label_length
+                    bottom_ = top_+label_height
+                    cv2.rectangle(frame, (left_, top_), (right_, bottom_), bg_color, cv2.FILLED)
+                    cv2.putText(frame, '%s'%labels[rclasses[i]], (left_+__left_margin__, bottom_-__top_margin__), font, 1, text_color, 2)
+                    #cv2.putText(frame, '%s|%.2f'%(labels[rclasses[i]],rscores[i]), (left_+__left_margin__, bottom_-__top_margin__), font, 1, text_color, 2)
+                else:
+                    left_ = right+left_margin
+                    top_ = top+top_margin
+                    right_ = right+label_length
+                    bottom_ = top_+label_height
+                    cv2.rectangle(frame, (left_, top_), (right_, bottom_), bg_color, cv2.FILLED)
+                    cv2.putText(frame, '%s'%labels[rclasses[i]], (left_+__left_margin__, bottom_-__top_margin__), font, 1, text_color, 2)
+                    #cv2.putText(frame, '%s|%.2f'%(labels[rclasses[i]],rscores[i]), (left_+__left_margin__, bottom_-__top_margin__), font, 1, text_color, 2)
+                # license plate detection and display result
+                if labels[rclasses[i]] == 'car' and \
+                   self.enable_license_plate_recognition:
+                    '''
+                    image,res = recognize_plate(roi)
+                    if len(res) == 0:
+                        continue
+                    if (right-left) > (label_length+2*left_margin+2*__left_margin__):
+                        left_ = left+left_margin
+                        top_ = bottom_+label_gap
+                        right_ = left+label_length
+                        bottom_ = top_+label_height
+                        cv2.rectangle(frame, (left_, top_), (right_, bottom_), bg_color, cv2.FILLED)
+                        cv2.putText(frame, res[0][0], (left_+__left_margin__, bottom_-__top_margin__), font, 1, text_color, 2)
+                    else:
+                        left_ = right+left_margin
+                        top_ = bottom_+label_gap
+                        right_ = right+label_length
+                        bottom_ = top_+label_height
+                        cv2.rectangle(frame, (left_, top_), (right_, bottom_), bg_color, cv2.FILLED)
+                        cv2.putText(frame, res[0][0], (left_+__left_margin__, bottom_-__top_margin__), font, 1, text_color, 2)
+                    '''
         ### Projecting to Label    
         rgbImage = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
         convertToQtFormat = QImage(rgbImage.data, w, h, QImage.Format_RGB888)
@@ -139,6 +274,9 @@ class Thread(QThread):
             
         elif ext.lower() in video_exts:
             cap = cv2.VideoCapture(os.path.abspath(self.filepath))
+            fps = cap.get(cv2.CAP_PROP_FPS)
+            cnt=0
+            pick_rate = int(fps/self.fps)
             self.isfirstscreen_displayed = False
             while True:
                 ### check if the first screen or not
@@ -150,6 +288,9 @@ class Thread(QThread):
                 ret, frame = cap.read()
                 if not ret:
                     break
+                cnt += 1
+                if cnt%pick_rate != 1:
+                    continue
                 ### Handling Exception
                 h,w,c=frame.shape
                 frame = cv2.resize(frame,(int(w/4)*4,int(h/4)*4))
