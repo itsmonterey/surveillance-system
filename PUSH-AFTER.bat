@@ -1,6 +1,6 @@
 move ..\tmp\checkpoints .\
 move ..\tmp\out .\
-move ..\tmp\sample .\
+move ..\tmp\samples .\
 move ..\tmp\*.m4v .\
 move ..\tmp\*.avi .\
 move ..\tmp\*.mp4 .\

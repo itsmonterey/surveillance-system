@@ -19,7 +19,7 @@ import imp
 
 
 imp.reload(sys)
-fontC = ImageFont.truetype("./Font/platech.ttf", 14, 0);
+fontC = ImageFont.truetype("./Font/platech.ttf", 14, 0)
 
 from . import e2e
 #寻找车牌左右边界

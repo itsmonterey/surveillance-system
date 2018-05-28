@@ -25,12 +25,6 @@ from PyQt5.QtGui import QImage,QPixmap
 from PyQt5.QtGui import QPainter, QPen, QBrush#, QPainterPath
 from PyQt5.QtCore import QLine, QPoint, QRect#,QSize, 
 
-import numpy as np
-#import random
-#import time
-
-#from alpr_hyper import recognize_plate
-
 from constants import image_exts,video_exts
 from constants import labels
 from constants import left_margin,top_margin
@@ -39,104 +33,11 @@ from constants import label_gap
 from constants import __top_margin__,__left_margin__
 from constants import text_color,bg_color
 
-#car_cascade = cv2.CascadeClassifier('./cars.xml')
+import numpy as np
+#import random
+#import time
 
-from hyperlpr_py3 import pipline as pp
-
-import cv2
-
-import time
-
-draw_plate_in_image_enable = 1
-
-plateTypeName = ["蓝", "黄", "绿", "白", "黑 "]
-
-def recognize_plate(image):
-    t0 = time.time()
-
-    images = pp.detect.detectPlateRough(
-        image, image.shape[0], top_bottom_padding_rate=0.1)
-
-    res_set = []
-    y_offset = 32
-    for j, plate in enumerate(images):
-        plate, rect, origin_plate = plate
-
-        plate = cv2.resize(plate, (136, 36 * 2))
-        #t1 = time.time()
-
-        plate_type = pp.td.SimplePredict(plate)
-        plate_color = plateTypeName[plate_type]
-
-        if (plate_type > 0) and (plate_type < 5):
-            plate = cv2.bitwise_not(plate)
-
-        if draw_plate_in_image_enable == 1:
-            image[y_offset:y_offset + plate.shape[0], 0:plate.shape[1]] = plate
-            y_offset = y_offset + plate.shape[0] + 4
-
-        image_rgb = pp.fm.findContoursAndDrawBoundingBox(plate)
-
-        if draw_plate_in_image_enable == 1:
-            image[y_offset:y_offset + image_rgb.shape[0],
-                  0:image_rgb.shape[1]] = image_rgb
-            y_offset = y_offset + image_rgb.shape[0] + 4
-
-        image_rgb = pp.fv.finemappingVertical(image_rgb)
-
-        if draw_plate_in_image_enable == 1:
-            image[y_offset:y_offset + image_rgb.shape[0],
-                  0:image_rgb.shape[1]] = image_rgb
-            y_offset = y_offset + image_rgb.shape[0] + 4
-
-        pp.cache.verticalMappingToFolder(image_rgb)
-
-        if draw_plate_in_image_enable == 1:
-            image[y_offset:y_offset + image_rgb.shape[0],
-                  0:image_rgb.shape[1]] = image_rgb
-            y_offset = y_offset + image_rgb.shape[0] + 4
-
-        e2e_plate, e2e_confidence = pp.e2e.recognizeOne(image_rgb)
-        #print("e2e:", e2e_plate, e2e_confidence)
-
-        image_gray = cv2.cvtColor(image_rgb, cv2.COLOR_RGB2GRAY)
-
-        #print("校正", time.time() - t1, "s")
-
-        #t2 = time.time()
-        val = pp.segmentation.slidingWindowsEval(image_gray)
-        #print(val)
-        #print("分割和识别", time.time() - t2, "s")
-
-        res=""
-        confidence = 0
-        if len(val) == 3:
-            blocks, res, confidence = val
-            if confidence / 7 > 0.7:
-
-                if draw_plate_in_image_enable == 1:
-                    image = pp.drawRectBox(image, rect, res)
-                    for i, block in enumerate(blocks):
-                        block_ = cv2.resize(block, (24, 24))
-                        block_ = cv2.cvtColor(block_, cv2.COLOR_GRAY2BGR)
-                        image[j * 24:(j * 24) + 24, i *
-                              24:(i * 24) + 24] = block_
-                        if image[j * 24:(j * 24) + 24,
-                                 i * 24:(i * 24) + 24].shape == block_.shape:
-                            pass
-
-        res_set.append([res,
-                        confidence / 7,
-                        rect,
-                        plate_color,
-                        e2e_plate,
-                        e2e_confidence,
-                        len(blocks)])
-        #print("seg:",res,confidence/7)
-    print(time.time() - t0, "s")
-
-    #print("---------------------------------")
-    return image, res_set
+from alpr_hyper import recognize_plate
 
 class Thread(QThread):
     changePixmap = pyqtSignal(QPixmap)
@@ -146,6 +47,7 @@ class Thread(QThread):
         self.filepath = None
         self.width, self.height = 640,480
         self.wratio,self.hratio=1,1
+        self.roiRect = QRect()
         self.fps = 10
         self.curFrame = np.zeros((self.height,self.width,3), dtype=np.uint8)
         self.initialize()
@@ -155,13 +57,12 @@ class Thread(QThread):
         self.isdrawing = False
         self.isfinished = True
         self.isfirstscreen_displayed = False
-        self.ispaused = True
+        self.ispaused = False#True
         self.ismarked = False
         self.isinterrupted = False
         
-        self.isprocessing = False
+        self.isprocessing = True#False
         
-        self.enable_license_plate_recognition = True
         ###        
         
     def isDrawing(self):
@@ -191,17 +92,8 @@ class Thread(QThread):
             frame = cv2.rectangle(frame, (int(x1),int(y1)), (int(x2),int(y2)), (0,255,0), int(self.wratio if self.wratio > 2 else 2))
         ### Processing
         if self.isprocessing:
-            image,cands = recognize_plate(frame)
-            # license plate detection and display result
-            for cand in cands:
-                plate_string = cand[0]
-                confidence = cand[1]
-                left,top,width,height = cand[2]
-                #plate_colr = cand[3]
-                font = cv2.FONT_HERSHEY_DUPLEX
-                if confidence > 0.7:
-                    cv2.rectangle(frame, (left, top-__left_margin__), (left+width, top), bg_color, cv2.FILLED)
-                    cv2.putText(frame, plate_string, (left-__left_margin__, top-__top_margin__), font, 1, text_color, 2)
+            cv2.waitKey(33)
+            frame,cands = recognize_plate(frame.copy())
         ### Projecting to Label    
         rgbImage = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
         convertToQtFormat = QImage(rgbImage.data, w, h, QImage.Format_RGB888)

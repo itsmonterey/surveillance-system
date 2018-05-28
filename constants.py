@@ -42,3 +42,9 @@ text_height = label_height - 2 * __top_margin__
 
 text_color = (255,255,255)#(255, 0, 255)
 bg_color = (0,0,255)#(68, 68, 58)
+warning_colr = (0,255,255)
+danger_colr = (200,0,200)
+
+screen_size = (1200,680)
+display_size = (500,500)
+
