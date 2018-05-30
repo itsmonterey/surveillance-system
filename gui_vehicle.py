@@ -36,16 +36,16 @@ detector = VehicleDetector()
 
 #from alpr_hyper import recognize_plate
 
-from entity import Entity,EntityManager
+from entity import EntityManager
 
 EM = EntityManager()
 
 from constants import image_exts,video_exts
 from constants import labels
-from constants import bg_color
+#from constants import bg_color
 from constants import screen_size
 
-from util import drawMark,drawRectBox,drawStatus
+from util import drawMark,drawStatus
 
 import logging
 
@@ -67,9 +67,6 @@ logger.info('Start recording ssd results...')
 
 (cv_major_ver, cv_minor_ver, cv_subminor_ver) = (cv2.__version__).split('.')
 
-global fps
-global fourcc
-global writer
 if int(cv_major_ver) < 3 :
     fourcc = cv2.cv.CV_FOURCC('D','I','V','X')
     #writer = cv2.VideoWriter('record.AVI',	fourcc, fps, (width,height), 1)
@@ -77,7 +74,7 @@ else:
     fourcc = cv2.VideoWriter_fourcc(*'XVID')
     #writer = cv2.VideoWriter('record.AVI',	fourcc, fps, (width,height), True)
 
-from constants import overtime_color,restricted_color,wrong_color,crossover_color
+#from constants import overtime_color,restricted_color,wrong_color,crossover_color
 
 class Thread(QThread):
     changePixmap = pyqtSignal(QPixmap)
@@ -85,7 +82,7 @@ class Thread(QThread):
     def __init__(self, parent=None):
         QThread.__init__(self, parent=parent)
         self.filepath = None
-        self.width, self.height = 640,480
+        self.width, self.height = screen_size
         self.wratio,self.hratio=1,1
         self.fps = 15
         self.timelimit=2
@@ -99,12 +96,11 @@ class Thread(QThread):
         self.restricted = (0,0,0,0)
         
         self.curFrame = np.zeros((self.height,self.width,3), dtype=np.uint8)
-        self.out = None
         
         self.initialize()
 
     def initialize(self):
-        # 
+        ###
         self.isdrawing = False
         self.isfinished = True
         self.isfirstscreen_displayed = False
@@ -112,9 +108,10 @@ class Thread(QThread):
         self.isprocessing = False
         self.ismarked = False
         self.isinterrupted = False
-        
+        ###
         self.enable_license_plate_recognition = True
-        ###        
+        ###
+        self.writer = None        
         
     def isDrawing(self):
         return self.isdrawing
@@ -170,35 +167,31 @@ class Thread(QThread):
             EM.refresh(candidates)
             for entity in EM.get_alives():
                 # object detection and display result
-                rect = entity.get_rect()
-                label = entity.get_label()
+                rect = entity.getCurrentRect()
+                label = entity.getLabel()
                 index = entity.getIndex()
                 print('%s,%s,%s'%(rect,label,index))
                 drawMark(frame,rect,label)
                 level=0
                 if entity.is_in_restricted(self.restricted):
-                    elapsed_time = entity.calc_time(self.fps)
+                    elapsed_time = entity.calcStopTime(self.fps)
                     if elapsed_time > self.timelimit:
                         inform_str = '%dth target is stuck.'%index
-                        #drawMark(frame,rect,label,overtime_color)
                         drawStatus(frame,rect,inform_str,level=level)
                     else:
                         inform_str = '%dth target is in restricted zone.'%index
-                        #drawMark(frame,rect,label,restricted_color)
                         drawStatus(frame,rect,inform_str,level=level)
                     level+=1
                 if self.direction and entity.is_in_wrong_direction(self.direction):
                     inform_str = '%dth target is in wrong direction.'%index
-                    #drawMark(frame,rect,label,wrong_color)
                     drawStatus(frame,rect,inform_str,level=level)
                     level+=1
                 if self.direction and self.rline_pt1 and self.rline_pt2 and \
                    entity.is_over_red_line(self.redline_pt1,self.redline_pt2,self.direction):
                     inform_str = '%dth target crossed the red line.'%index
-                    #drawMark(frame,rect,label,crossover_color)
                     drawStatus(frame,rect,inform_str,level=level)
                     level+=1
-                self.out.write(frame) if self.out is not None else None
+                self.writer.write(frame) if self.writer is not None else None
         ### Projecting to Label    
         rgbImage = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
         convertToQtFormat = QImage(rgbImage.data, w, h, QImage.Format_RGB888)
@@ -234,14 +227,16 @@ class Thread(QThread):
             self.curFrame = frame.copy()
             
         elif ext.lower() in video_exts:
-            self.out = cv2.VideoWriter('out.avi',fourcc, 10, (screen_size[0],screen_size[1]),True)
             cap = cv2.VideoCapture(os.path.abspath(self.filepath))
             fps = cap.get(cv2.CAP_PROP_FPS)
             width,height = cap.get(cv2.CAP_PROP_FRAME_WIDTH),\
                            cap.get(cv2.CAP_PROP_FRAME_HEIGHT)
-            EM.setScreenSize([width,height])
+            w,h=int(width/4)*4,int(height/4)*4
+            size=(w,h)
+            self.writer = cv2.VideoWriter('tracking.avi',fourcc, 10, size,True)
+            EM.setScreenSize(size)
             cnt=0
-            pick_rate = int(fps/self.fps)
+            pick_rate = int(fps/self.fps)# if fps > 2*self.fps else 2
             print('pick_rate:%d'%pick_rate)
             self.isfirstscreen_displayed = False
             while True:
@@ -258,14 +253,13 @@ class Thread(QThread):
                 if cnt%pick_rate != 1:
                     continue
                 ### Handling Exception
-                h,w,c=frame.shape
-                frame = cv2.resize(frame,(int(w/4)*4,int(h/4)*4))
+                frame = cv2.resize(frame,size)
                 ### Processing
                 self.process(frame.copy())
                 ### Handling Idle
                 self.curFrame = frame.copy()
             self.isfinished = True
-        self.out.release() if self.out is not None else None
+            self.writer.release() if self.writer is not None else None
 
     def setDirection(self,pt1,pt2):
         self.direction_pt1 = (pt1.x(),pt1.y())
@@ -521,18 +515,6 @@ class Dialog(QDialog):
     
     def selection_change(self,i):
         self.selected_option = self.combo.currentText()
-        '''
-        for case in switch(self.selected_option):
-            if case('Direction'):
-                self.drawType = 0
-                break
-            if case('Forbidden'):
-                self.drawType = 1
-                break
-            if case('RedLine'):
-                self.drawType = 2
-                break
-        '''
         
 if __name__ == "__main__":
     app = QApplication.instance()

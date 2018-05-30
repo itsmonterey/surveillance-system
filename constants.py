@@ -50,4 +50,5 @@ crossover_color = (200,0,200)
 
 screen_size = (1200,680)
 display_size = (500,500)
+video_size =(1920,1080)
 

@@ -12,6 +12,27 @@ min_threshold = 5
 
 import math
 
+import logging
+
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
+
+# create a file handler
+handler = logging.FileHandler('tracking.log')
+handler.setLevel(logging.INFO)
+
+# create a logging format
+formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+handler.setFormatter(formatter)
+
+# add the handlers to the logger
+logger.addHandler(handler)
+
+logger.info('Start recording tracking results...')
+
+ENTITY_LIFE = 10
+
+
 class Entity(object):
     
     def __init__(self,rect,label='car'):
@@ -28,28 +49,29 @@ class Entity(object):
                 
         self.stopframes_cnts = 0
         
-        self.life = 2#discounted by one for any frame without corresponding pair
+        self.life = ENTITY_LIFE#discounted by one for any frame without corresponding pair
         
         self.label =  label
         self.lp_str = 'unkown'
         self.colr = 'unknown'
         self.brand = 'unknown'
+        self.status = 'staying'#staying,moving
+        # pedestrian
         self.name = 'unknown'
         self.gender = 'unknown'
-        self.status = 'staying'#staying,moving
         
-        self.mismatching_cnts = 0
+        self.mismatching_cnts = 5
         
         self.screen_size = (1200,680)
 
-    def calc_speed(self):
+    def calcVelocity(self):
         # speed
-        if len(self.poslist) > 0:
-            length = len(self.poslist)
-            self.spf_x = self.pos[0] - self.poslist[length - 3][0] if length > 2 else\
-                         self.pos[0] - self.poslist[length - 2][0]
-            self.spf_y = self.pos[1] - self.poslist[length - 3][1] if length > 2 else\
-                         self.pos[1] - self.poslist[length - 2][1]
+        length = len(self.poslist)
+        if length > 1:
+            spf_avg_x = (self.pos[1] - self.poslist[0][1])/(length-1)
+            spf_avg_y = (self.pos[1] - self.poslist[0][1])/(length-1)
+            self.spf_x = spf_avg_x
+            self.spf_y = spf_avg_y
         if abs(self.spf_x) < min_threshold and\
            abs(self.spf_y) < min_threshold:
             self.status = 'staying'
@@ -58,49 +80,70 @@ class Entity(object):
             self.status = 'moving'
             self.stopframes_cnts = 0
 
-    def calc_time(self,fps):
+    def calcStopTime(self,fps):
         return self.stopframes_cnts/fps
 
-    def decrease_health(self,force_kill=0):
+    def contains(self, point):
+        x,y=point
+        l,t,r,b=self.getCorners()
+        if l < x and x < r and \
+           t < y and y < b:
+            return True
+        return False
+        
+    def decreaseHealth(self,force_kill=0,explanation='out of sight'):
         if force_kill:
-            self.life = 0
-        self.life -= 1
+            logger.info('%d-killed forcely due to %s'%(self.getIndex(),explanation))
+            self.life = -1
+        else:
+            self.life -= 1
+            logger.info('%d-health(%d) decreased by one.'%(self.getIndex(),self.getHealth()))
+            if not self.life:
+                logger.info('%d-killed by gradually decrease.'%self.getIndex())
 
-    def estimate_next_pos(self):
+    def estimateNextPosition(self):
         self.nextpos = (self.pos[0]+self.spf_x,self.pos[1]+self.spf_y)
 
-    def get_mismatching_cnts(self):
-        return self.mismatching_cnts
+    def getCorners(self):
+        x,y=self.pos
+        w,h=self.size
+        return (x-w/2,y-h/2,x+w/2,y+h/2)
 
-    def getIndex(self):
-        return self.index
-
-    def get_label(self):
-        return self.label
-        
-    def get_rect(self):
+    def getCurrentRect(self):
         xc,yc = self.pos#self.nextpos
         w,h = self.size
-        if xc>=self.screeen_size[0] or\
-           yc>=self.screeen_size[1] or\
-           xc+w < 0 or\
-           yc+h < 0:
-            self.decrease_health(force_kill=1)
+        if xc-w/2>=self.screeen_size[0] or\
+           yc-h/2>=self.screeen_size[1] or\
+           xc+w/2 < 0 or\
+           yc+h/2 < 0:
+            self.decreaseHealth(force_kill=1,explanation='out of sight')
         return [int(xc-w/2),int(yc-h/2),int(w),int(h)]
-
-    def get_keys(self):
+    
+    def getData(self):
         w,h=self.size
         x,y=self.pos       
         return y-h/2,x-w/2,y+h/2,x+w/2,w,h,self.label
+
+    def getHealth(self):
+        return self.life
     
+    def getIndex(self):
+        return self.index
+
+    def getLabel(self):
+        return self.label
+
+    def getMismatchingCnts(self):
+        return self.mismatching_cnts
+        
     def increase_mismatching(self):
         self.mismatching_cnts += 1
  
-    def increase_health(self):
+    def increaseHealth(self):
         self.life += 1
-        self.life = max(self.life,3)        
+        self.life = min(self.life,ENTITY_LIFE)        
         
-    def initialize_mismatching(self):
+    def initializeMismatchingCnts(self):
         self.mismatching_cnts = 0
 
     def isAlive(self):
@@ -110,9 +153,7 @@ class Entity(object):
             return False
 
     def is_in_restricted(self,rect):
-        x,y=self.pos
-        w,h=self.size
-        l,t,r,b=x,y,x+w,y+h
+        l,t,r,b=self.getCorners()
         left,top,width,height=rect
         right,bottom=left+width,top+height
         if r < left or\
@@ -158,25 +199,42 @@ class Entity(object):
         xc_,yc_=neighbor.pos
         w,h=self.size
         w_,h_=neighbor.size
+                
         ratio_diff = abs(w/h-w_/h_)
         size_diff = (w*h)/(w_*h_)
         distance = math.sqrt((xc-xc_)**2 + (yc-yc_)**2)
         
         labels = set([self.label,neighbor.label])
+
+        logger.info('comparing %d--%d'%(self.getIndex(),neighbor.getIndex()))
+        logger.info('old:',str(self.getData()))
+        logger.info('new:',str(neighbor.getData()))
+        logger.info('ratio_diff:%.2f,size_diff:%.2f,distance:%.2f'%(ratio_diff,size_diff,distance))
+
+        if self.contains(neighbor.pos) or neighbor.contains(self.pos):
+            if ratio_diff < 2 and\
+               size_diff < 3 and\
+               size_diff > 0.35:
+               return True
         
         if len(labels) == 1 or all(label in labels for label in ['pedestrian','motorbike']):
-            if ratio_diff > 0.4 or\
+            if ratio_diff > 0.5 or\
                size_diff > 3 or\
                size_diff < 0.3:
+                logger.info('failed: size difference')
                 return False
             if any(case in labels for case in ['car','bus']):
                 if distance > min(w,w_,h_,h)/2:
+                    logger.info('failed: big distance ')
                     return False
             else:
                 if distance > 3 * min(w,w_,h_,h):
+                    logger.info('failed: big distance ')
                     return False
         else:
+            logger.info('failed: difference of classes')
             return False
+        logger.info('merge success')
         return True
 
     def merge(self,neighbor):
@@ -198,30 +256,34 @@ class Entity(object):
         if all(label in labels for label in ['pedestrian','motorbike']):
             self.label = 'motorbike'
 
+    
     def update(self,rect=None):
         if rect is None:
             self.pos = self.nextpos
-            self.decrease_health()
+            self.decreaseHealth()
         else:            
             x,y,w,h = rect
             self.pos = (x+w/2,y+h/2)
             self.size = (w,h)
-            self.increase_health()
+            self.increaseHealth()
         self.poslist.append(self.pos)
         # calculate speed,next_pos
-        self.calc_speed()
-        self.estimate_next_pos()
+        self.calcVelocity()
+        self.estimateNextPosition()
+        logger.info('%d-frame[%d]:%s'%(self.getIndex(),len(self.poslist),str(self.getData())))        
         
-    def setindex(self,index):
+    def setIndex(self,index):
         self.index = index
+        logger.info('starting-%d'%index)
+        logger.info('%d-frame[%d]:%s'%(self.getIndex(),len(self.poslist),str(self.getData())))
         
-    def setpos(self,pos):
+    def setPosition(self,pos):
         self.pos =  pos
     
     def setScreenSize(self,size):
         self.screeen_size=size
     
-    def setsize(self,size):
+    def setSize(self,size):
         self.size = size
           
 class EntityManager(object):
@@ -248,15 +310,18 @@ class EntityManager(object):
                 e_.setScreenSize(self.screen_size)
                 if e.isMergable(e_):
                     e.merge(e_)
-                    filtered[i] = e.get_keys()
+                    filtered[i] = e.getData()
                     isNew = False
                     break
-            filtered.append([top,left,bottom,right,width,height,label]) if isNew else None
+            ratio = width/height
+            filtered.append([top,left,bottom,right,width,height,label]) if isNew and 0.27<ratio and ratio < 2.3 else None
         return filtered
 
     def finialize(self,obj_cnts):
         for entity in self.entitylist:
-            if entity.get_mismatching_cnts() == obj_cnts:
+            if not entity.isAlive():
+                continue
+            if entity.getMismatchingCnts() == obj_cnts:
                 entity.update()
                 
     def get_alives(self):
@@ -264,7 +329,9 @@ class EntityManager(object):
     
     def initialize(self):
         for entity in self.entitylist:
-            entity.initialize_mismatching()
+            if not entity.isAlive():
+                continue
+            entity.initializeMismatchingCnts()
           
     def refresh(self,candidates):
         # 
@@ -283,7 +350,7 @@ class EntityManager(object):
                 else:
                     entity.increase_mismatching()
             if isNew:
-                incoming.setindex(len(self.entitylist))
+                incoming.setIndex(len(self.entitylist))
                 incoming.setScreenSize(self.screen_size)
                 new_entities.append(incoming)
         # finalize old entities

@@ -7,6 +7,10 @@ move model ..\tmp
 move *.m4v ..\tmp
 move *.mp4 ..\tmp
 move *.avi ..\tmp
+move *.AVI ..\tmp
 del /Q /S *.bak
 del /Q /S *.pyc
+del *.log
+del log.txt
+rmdir /s /q cache\finemapping
 pause

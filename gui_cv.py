@@ -16,7 +16,7 @@ detector = VehicleDetector()
 from hyperlpr_py3 import pipline as pp
 
 from constants import labels
-from constants import screen_size#,display_size
+from constants import screen_size,video_size#,display_size
 #from constants import image_exts,video_exts
 
 draw_plate_in_image_enable = 0
@@ -82,6 +82,7 @@ def recognize_plate(image):
         #print("分割和识别", time.time() - t2, "s")
         res=""
         confidence = 0
+        blocks = []
         if len(val) == 3:
             blocks, res, confidence = val
             if confidence / 7 > 0.7:
@@ -109,16 +110,33 @@ def recognize_plate(image):
     print("---------------------------------")
     return image, res_set
 
-cnt = 0
-fps = 8
-
 from util import drawMark,drawRectBox
 from constants import bg_color
 
+(cv_major_ver, cv_minor_ver, cv_subminor_ver) = (cv2.__version__).split('.')
+fps = 10
+mode = 'recoding'#'displaying','mix'
+
+from handy.misc import switch
+
 if __name__ == "__main__":
+    ### basic setting
     path = './samples/9.avi'
     cap = cv2.VideoCapture(path)
-    #fps = cap.get(cv2.CAP_PROP_FPS)
+    fps_ = cap.get(cv2.CAP_PROP_FPS)
+    pick_rate = int(fps_/fps) if fps_ >= 2*fps else 2
+    ### video writer settting
+    record_size=screen_size
+    if mode is 'recoding':
+        record_size=(int(cap.get(cv2.CAP_PROP_FRAME_WIDTH)),int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT)))
+    if int(cv_major_ver) < 3 :
+        fourcc = cv2.cv.CV_FOURCC('D','I','V','X')
+        writer = cv2.VideoWriter('record.AVI',	fourcc, fps, record_size, 1)
+    else:
+        fourcc = cv2.VideoWriter_fourcc(*'XVID')
+        writer = cv2.VideoWriter('record.AVI',	fourcc, fps, record_size, True)
+    ###
+    cnt = 0
     if os.path.exists(path):
         print('processing...')
         while True:
@@ -130,7 +148,7 @@ if __name__ == "__main__":
                 break
             h,w,c=frame.shape
             cnt += 1
-            if cnt%4 != 1:
+            if cnt%pick_rate != 1:
                 continue
             # object detection
             rclasses, rscores, rbboxes =  detector.process_image(frame.copy())
@@ -156,14 +174,28 @@ if __name__ == "__main__":
                 roi, cands = recognize_plate(roi)
                 # mark 
                 for lp_str,conf,rect,lp_colr,lp_str_,conf,length in cands:
-                    if conf > 0.7:
-                        left_,top_,width_,height_ = rect
-                        frame[top:top+height,left:left+width,:] = \
-                                drawRectBox(roi,(int(left_),int(top_),int(width_),int(height_)),lp_str)
+                    if conf < 0.7:
+                        continue
+                    left_,top_,width_,height_ = rect
+                    frame[top:top+height,left:left+width,:] = \
+                            drawRectBox(roi,(int(left_),int(top_),int(width_),int(height_)),lp_str)
                     break
-            
-            frame = cv2.resize(frame,screen_size)
-            cv2.imshow('all',frame)
-            # Wait for Esc key to stop
-            if cv2.waitKey(33) == 27:
-                break
+            for case in switch(mode):
+                if case('displaying'):
+                    frame = cv2.resize(frame,screen_size)
+                    cv2.imshow('demo',frame)
+                    break
+                if case('recoding'):
+                    writer.write(frame)
+                    break
+                if case('mix'):
+                    frame = cv2.resize(frame,screen_size)
+                    cv2.imshow('demo',frame)
+                    writer.write(frame)
+                    break
+             # Wait for Esc key to stop
+            if cv2.waitKey(5) == 27:
+                cv2.destroyAllWindows()
+                
+    cv2.destroyAllWindows()
+    writer.release()
