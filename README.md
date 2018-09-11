@@ -1,5 +1,5 @@
 # Surveillance System
-This repos, a preprocessing module for surveillance-system, takes out keeps vehicle frames from video stream. It also contains openalpr-based license plate recognition module.
+This repo is one of implementations to detect vehicle, recognize license plates, track objects. Major detection & recognition including vehicle detection and license plate recognition are based on Deep Learning.
 
 # Run   
       python gui_cv.py
@@ -16,9 +16,11 @@ This repos, a preprocessing module for surveillance-system, takes out keeps vehi
       
 
 # Reference
-   caffe: [installation](http://caffe.berkeleyvision.org/install_apt.html), [source-code](https://github.com/weiliu89/caffe/tree/ssd)
+   - [caffe-ssd](https://github.com/weiliu89/caffe/tree/ssd)
    
-   openalpr:[source-code](https://github.com/openalpr/openalpr)
+   - [openalpr](https://github.com/openalpr/openalpr)
+   
+   - [hyperlpr](https://github.com/zeusees/HyperLPR)
 
 # Acknowledgement
   * I would like to thanks [weiliu](https://github.com/weiliu89/caffe/tree/ssd) for his wonderful caffe-based ssd and also thanks [balancap](https://github.com/balancap/SSD-Tensorflow) for his tensorflow ssd job.
