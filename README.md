@@ -5,7 +5,7 @@ This repo is one of implementations to detect vehicle, recognize license plates,
       python gui_cv.py
 ![known](https://github.com/gustavkkk/surveillance-system/blob/master/licenseplate.png)
 
-      python gui_vehicle     
+      python gui_vehicle.py
 ![known](https://github.com/gustavkkk/surveillance-system/blob/master/tracking.png)
 
 # Download
